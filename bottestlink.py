@@ -190,3 +190,12 @@ def main():
 
 if __name__ == "__main__":
     main()
+sw_options = {
+    'verify_ssl': False, # Rất quan trọng để tránh lỗi khi proxy xử lý HTTPS
+    'connection_timeout': None
+}
+driver = webdriver.Chrome(
+    service=Service(ChromeDriverManager().install()),
+    options=chrome_options,
+    seleniumwire_options=sw_options
+)
