@@ -1,0 +1,25 @@
+name: Auto HoiQuan
+
+on:
+  schedule:
+    - cron: '0,15 * * * *'
+  workflow_dispatch:
+  repository_dispatch:
+    types: [trigger-bot]
+
+jobs:
+  run-bot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - name: Install dependencies
+        run: |
+          pip install selenium-wire webdriver-manager PyGithub blinker==1.7.0 "setuptools<70.0.0"
+      - name: Run Bot
+        env:
+          MY_GITHUB_TOKEN: ${{ secrets.MY_GITHUB_TOKEN }}
+          TZ: Asia/Ho_Chi_Minh
+        run: python bottestlink.py
