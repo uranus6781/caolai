@@ -47,7 +47,7 @@ def get_m3u8_link(driver, url):
 def make_absolute_url(url):
     if not url: return BACKGROUND_IMG
     if url.startswith("//"): return "https:" + url
-    if url.startswith("/"): return "https://hoiquan1.live" + url
+    if url.startswith("/"): return "https://https://sv2.hoiquan3.live/lich-thi-dau/bong-da" + url
     return url
 
 def main():
@@ -72,7 +72,7 @@ def main():
 
     try:
         wait = WebDriverWait(driver, 15)
-        driver.get("https://sv2.hoiquan2.live/lich-thi-dau/bong-da")
+        driver.get("https://sv2.hoiquan3.live/lich-thi-dau/bong-da")
         items = wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "a[href*='bong-da']")))
         
         matches_data = []
@@ -172,7 +172,7 @@ def main():
                                 "default": True,
                                 "url": link_m3u8,
                                 "request_headers": [
-                                    {"key": "Referer", "value": "https://hoiquan1.live/"},
+                                    {"key": "Referer", "value": "https://sv2.hoiquan3.live"},
                                     {"key": "User-Agent", "value": "Mozilla/5.0"}
                                 ]
                             }]
