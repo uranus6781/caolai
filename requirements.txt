@@ -1,0 +1,5 @@
+selenium-wire
+webdriver-manager
+PyGithub
+blinker==1.7.0
+setuptools<70.0.0
