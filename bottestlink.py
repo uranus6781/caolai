@@ -206,7 +206,20 @@ def main():
                 "id": "group-upcoming", "name": "⏳ SẮP DIỄN RA", "display": "vertical", "grid_number": 3,
                 "enable_detail": False, "channels": upcoming_channels
             })
+            
+# Lưu file JSON
+with open("football.json", "w", encoding="utf-8") as f:
+    json.dump(du_lieu_json, f, ensure_ascii=False, indent=4)
 
+# Tạo và lưu file M3U
+m3u_content = "#EXTM3U\n"
+for tran in matches_data:
+    group = "🔴 ĐANG DIỄN RA" if tran['is_live'] else "⏳ SẮP DIỄN RA"
+    m3u_content += f'#EXTINF:-1 tvg-logo="{tran["logo_1"]}" group-title="{group}", {tran["doi_1"]} vs {tran["doi_2"]}\n'
+    m3u_content += f'{tran["link_m3u8"]}|Referer=https://sv2.hoiquan3.live\n'
+
+with open("football.m3u", "w", encoding="utf-8") as f:
+    f.write(m3u_content)
         # BƯỚC 3: ĐẨY LÊN GITHUB
         if GITHUB_TOKEN:
             auth = Auth.Token(GITHUB_TOKEN)
