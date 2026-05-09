@@ -1,0 +1,13 @@
+[
+    {
+        "id": "hoiquan-tv-pro",
+        "url": "https://raw.githack.com/Eternal161/hoiquan/main/playlist.json",
+        "name": "Trực Tiếp Bóng Đá",
+        "color": "#1cb57a",
+        "grid_number": 3,
+        "image": {
+            "type": "cover",
+            "url": "https://i.postimg.cc/02tKjcyN/JT3IVCOJDKW3PBRFZAZUILENLU.jpg"
+        }
+    }
+]
