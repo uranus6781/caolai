@@ -16,7 +16,7 @@ from selenium.webdriver.support import expected_conditions as EC
 GITHUB_TOKEN = os.environ.get("MY_GITHUB_TOKEN") 
 GITHUB_REPO_NAME = "uranus6781/caolai" 
 GITHUB_FILE_PATH = "playlist.json"
-BACKGROUND_IMG = "https://imgur.com/HDRH6Ii" # DÁN LINK ẢNH NỀN CỦA BẠN VÀO ĐÂY
+BACKGROUND_IMG = "https://imgur.com/HDRH6Ii"
 # ===================================================
 
 def init_driver():
@@ -27,45 +27,36 @@ def init_driver():
     return webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
 
 def get_m3u8_link(driver, url):
-    """Hàm chuyên dụng: Vào trang xem trực tiếp và rình lấy đúng link m3u8 của trận đó"""
-    del driver.requests # Dọn sạch rác mạng của trận trước (CHỐNG TRÙNG LINK)
+    del driver.requests
     driver.get(url)
-    
-    max_wait_time = 15 # Đợi tối đa 15 giây
+    max_wait_time = 15
     start_time = time.time()
-    
     while time.time() - start_time < max_wait_time:
         for req in driver.requests:
             if req.response and '.m3u8' in req.url:
-                # Bỏ qua các link m3u8 không phải là luồng stream chính
                 if 'chunklist' not in req.url and 'ad' not in req.url:
                     return req.url
-        time.sleep(1) # Quét mỗi giây 1 lần
-        
-    return "http://link_khong_ton_tai_hoac_chua_phat.m3u8"
+        time.sleep(1)
+    return "http://waiting.m3u8"
 
 def make_absolute_url(url):
     if not url: return BACKGROUND_IMG
     if url.startswith("//"): return "https:" + url
-    if url.startswith("/"): return "https://https://sv2.hoiquan3.live/lich-thi-dau/bong-da" + url
+    if url.startswith("/"): return "https://sv2.hoiquan3.live" + url
     return url
 
 def main():
     driver = init_driver()
-    
-    # Cấu trúc JSON chuẩn cho Mon Player
     du_lieu_json = {
         "id": "hoiquan-tv-pro",
         "url": f"https://raw.githack.com/{GITHUB_REPO_NAME}/main/{GITHUB_FILE_PATH}",
         "name": "Trực Tiếp Bóng Đá",
         "color": "#1cb57a",
         "grid_number": 3,
-       "image": {
-        "type": "cover", 
-        "url": "https://i.postimg.cc/02tKjcyN/JT3IVCOJDKW3PBRFZAZUILENLU.jpg"
-    }},
+        "image": {"type": "cover", "url": "https://i.postimg.cc/02tKjcyN/JT3IVCOJDKW3PBRFZAZUILENLU.jpg"},
+        "groups": []
+    }
 
-    # Hai mảng chứa riêng biệt
     live_channels = []
     upcoming_channels = []
     link_da_quet = set()
@@ -77,7 +68,6 @@ def main():
         
         matches_data = []
 
-        # BƯỚC 1: LẤY THÔNG TIN CƠ BẢN CỦA TẤT CẢ CÁC TRẬN
         for item in items:
             link = item.get_attribute("href")
             if link in link_da_quet: continue
@@ -92,53 +82,37 @@ def main():
             if len(teams) < 2: continue
             doi_1, doi_2 = teams[0].text.strip(), teams[1].text.strip()
 
-            # Lấy Logo
             html_content = item.get_attribute("innerHTML")
             all_urls = re.findall(r'src="([^"]+)"', html_content) + re.findall(r'url\([\'"]?(.*?)[\'"]?\)', html_content)
             real_logos = [make_absolute_url(u) for u in all_urls if "bg-fixture" not in u and "data:image" not in u]
-            # Loại bỏ trùng lặp giữ nguyên thứ tự
             real_logos = list(dict.fromkeys(real_logos))
             
             logo_1 = real_logos[0] if len(real_logos) > 0 else BACKGROUND_IMG
             logo_2 = real_logos[1] if len(real_logos) > 1 else logo_1
 
-            # Tách Tỉ số và Thời gian
             score_match = re.search(r"(\d+)\s*-\s*(\d+)", text)
             ti_so = f"{score_match.group(1)} - {score_match.group(2)}" if score_match else "0 - 0"
 
             time_match = re.search(r"(\d{2}:\d{2})\s*[\r\n]*\s*(\d{2}/\d{2}/\d{4})?", text)
-            if time_match:
-                gio = time_match.group(1)
-                ngay = time_match.group(2) if time_match.group(2) else ""
-                thoi_gian = f"{gio} {ngay}".strip()
-            else:
-                thoi_gian = "Đang cập nhật"
+            thoi_gian = f"{time_match.group(1)} {time_match.group(2) if time_match and time_match.group(2) else ''}".strip() if time_match else "Đang cập nhật"
 
-            # Xác định Live hay Sắp diễn ra
             text_upper = text.upper()
-            is_finished = "FT" in text_upper or "KT" in text_upper or "HẾT GIỜ" in text_upper
+            is_finished = any(x in text_upper for x in ["FT", "KT", "HẾT GIỜ"])
             is_live = (bool(score_match) and not is_finished) or (("LIVE" in text_upper or "ĐANG ĐÁ" in text_upper) and not is_finished)
 
-            if not is_finished: # Chỉ lấy những trận chưa kết thúc
+            if not is_finished:
                 matches_data.append({
                     "link": link, "giai": giai_dau, "doi_1": doi_1, "doi_2": doi_2,
                     "logo_1": logo_1, "logo_2": logo_2, "ti_so": ti_so,
                     "thoi_gian": thoi_gian, "is_live": is_live
                 })
 
-        # BƯỚC 2: CÀO M3U8 VÀ ĐÓNG GÓI JSON CHO TỪNG TRẬN
         for tran in matches_data:
-            link_m3u8 = "http://waiting.m3u8"
+            link_m3u8 = get_m3u8_link(driver, tran['link']) if tran['is_live'] else "http://waiting.m3u8"
+            tran['m3u8_final'] = link_m3u8 # Lưu lại để dùng cho M3U
             
-            # Chỉ tốn thời gian cào m3u8 cho các trận ĐANG ĐÁ
-            if tran['is_live']:
-                link_m3u8 = get_m3u8_link(driver, tran['link'])
-                nhan_hien_thi = f"🔴 LIVE | {tran['thoi_gian']}"
-                label_color = "#e50914" # Màu đỏ
-            else:
-                nhan_hien_thi = f"⏳ Sắp diễn ra | {tran['thoi_gian']}"
-                label_color = "#1cb57a" # Màu xanh lá
-
+            nhan_hien_thi = f"🔴 LIVE | {tran['thoi_gian']}" if tran['is_live'] else f"⏳ Sắp diễn ra | {tran['thoi_gian']}"
+            label_color = "#e50914" if tran['is_live'] else "#1cb57a"
             match_id = "hq-" + hashlib.md5(f"{tran['doi_1']}{tran['doi_2']}".encode()).hexdigest()[:8]
             
             kenh_json = {
@@ -147,14 +121,7 @@ def main():
                 "type": "single",
                 "display": "default",
                 "enable_detail": False,  
-                "image": {
-                    "padding": 0,
-                    "background_color": "#000000",
-                    "display": "cover",
-                    "url": BACKGROUND_IMG, 
-                    "width": 1600,
-                    "height": 900
-                },
+                "image": {"display": "cover", "url": BACKGROUND_IMG, "width": 1600, "height": 900},
                 "labels": [{"text": nhan_hien_thi, "position": "top-left", "color": label_color, "text_color": "#ffffff"}],
                 "sources": [{
                     "id": f"src-{match_id}",
@@ -178,62 +145,43 @@ def main():
                             }]
                         }]
                     }]
-                }],
-                "org_metadata": {
-                    "league": tran['giai'],
-                    "team_a": tran['doi_1'],
-                    "team_b": tran['doi_2'],
-                    "logo_a": tran['logo_1'],
-                    "logo_b": tran['logo_2'],
-                    "score": tran['ti_so'],
-                    "thumb": BACKGROUND_IMG
-                }
+                }]
             }
 
-            if tran['is_live']:
-                live_channels.append(kenh_json)
-            else:
-                upcoming_channels.append(kenh_json)
+            if tran['is_live']: live_channels.append(kenh_json)
+            else: upcoming_channels.append(kenh_json)
 
-        # Đưa vào Group
         if live_channels:
-            du_lieu_json["groups"].append({
-                "id": "group-live", "name": "🔴 ĐANG DIỄN RA", "display": "vertical", "grid_number": 3,
-                "enable_detail": False, "channels": live_channels
-            })
+            du_lieu_json["groups"].append({"id": "group-live", "name": "🔴 ĐANG DIỄN RA", "display": "vertical", "channels": live_channels})
         if upcoming_channels:
-            du_lieu_json["groups"].append({
-                "id": "group-upcoming", "name": "⏳ SẮP DIỄN RA", "display": "vertical", "grid_number": 3,
-                "enable_detail": False, "channels": upcoming_channels
-            })
-            
-# Lưu file JSON
-with open("football.json", "w", encoding="utf-8") as f:
-    json.dump(du_lieu_json, f, ensure_ascii=False, indent=4)
+            du_lieu_json["groups"].append({"id": "group-upcoming", "name": "⏳ SẮP DIỄN RA", "display": "vertical", "channels": upcoming_channels})
 
-# Tạo và lưu file M3U
-m3u_content = "#EXTM3U\n"
-for tran in matches_data:
-    group = "🔴 ĐANG DIỄN RA" if tran['is_live'] else "⏳ SẮP DIỄN RA"
-    m3u_content += f'#EXTINF:-1 tvg-logo="{tran["logo_1"]}" group-title="{group}", {tran["doi_1"]} vs {tran["doi_2"]}\n'
-    m3u_content += f'{tran["link_m3u8"]}|Referer=https://sv2.hoiquan3.live\n'
+        # --- BƯỚC XUẤT FILE ---
+        # 1. Xuất football.json
+        with open("football.json", "w", encoding="utf-8") as f:
+            json.dump(du_lieu_json, f, ensure_ascii=False, indent=4)
+        
+        # 2. Xuất football.m3u
+        m3u_content = "#EXTM3U\n"
+        for tran in matches_data:
+            group = "LIVE NOW" if tran['is_live'] else "UPCOMING"
+            m3u_content += f'#EXTINF:-1 tvg-logo="{tran["logo_1"]}" group-title="{group}", {tran["doi_1"]} vs {tran["doi_2"]} ({tran["giai"]})\n'
+            m3u_content += f'{tran["m3u8_final"]}|Referer=https://sv2.hoiquan3.live&User-Agent=Mozilla/5.0\n'
+        
+        with open("football.m3u", "w", encoding="utf-8") as f:
+            f.write(m3u_content)
 
-with open("football.m3u", "w", encoding="utf-8") as f:
-    f.write(m3u_content)
         # BƯỚC 3: ĐẨY LÊN GITHUB
         if GITHUB_TOKEN:
             auth = Auth.Token(GITHUB_TOKEN)
             g = Github(auth=auth)
             repo = g.get_repo(GITHUB_REPO_NAME)
             json_content = json.dumps(du_lieu_json, ensure_ascii=False, indent=4)
-            
             try:
                 contents = repo.get_contents(GITHUB_FILE_PATH)
-                repo.update_file(contents.path, "Tự động phân loại trận đấu & Vá lỗi m3u8", json_content, contents.sha)
-                print("Đã cập nhật GitHub thành công!")
-            except Exception:
-                repo.create_file(GITHUB_FILE_PATH, "Tạo mới playlist", json_content)
-                print("Đã tạo file mới trên GitHub!")
+                repo.update_file(contents.path, "Update playlist", json_content, contents.sha)
+            except:
+                repo.create_file(GITHUB_FILE_PATH, "Create playlist", json_content)
 
     except Exception:
         traceback.print_exc()
@@ -242,4 +190,3 @@ with open("football.m3u", "w", encoding="utf-8") as f:
 
 if __name__ == "__main__":
     main()
-
